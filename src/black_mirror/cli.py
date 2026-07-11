@@ -79,10 +79,12 @@ def ingest_scar(scar_id: str):
         existing = c.fetchone()
         lineage_node = existing[0] if existing else web_layer.add_node("lineage", lineage)
 
+    observation_id = web_layer.add_node("observation", break_text)
     anomaly_id = web_layer.add_node("anomaly", f"[{btype}] {break_text[:100]}")
     claim_id = web_layer.add_node("claim", nutrient)
 
-    if anomaly_id and claim_id and lineage_node:
+    if observation_id and anomaly_id and claim_id and lineage_node:
+        web_layer.add_edge(observation_id, anomaly_id, "derives_from")
         web_layer.add_edge(anomaly_id, claim_id, "constrains")
         if btype == "smoothing":
             web_layer.add_edge(anomaly_id, claim_id, "smoothed_over")
@@ -92,6 +94,7 @@ def ingest_scar(scar_id: str):
         if blade_node:
             web_layer.add_edge(blade_node, anomaly_id, "derives_from")
         print(f"\n[✓] Scar {scar_id} metabolized.")
+        print(f"    Observation: {observation_id}")
         print(f"    Anomaly: {anomaly_id}")
         print(f"    Constraint: {claim_id}")
     else:
