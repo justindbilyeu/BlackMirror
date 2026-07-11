@@ -70,7 +70,9 @@ This creates two SQLite databases under `~/.black_mirror/`: one append-only log 
 black-mirror record
 ```
 
-Interactive. It will not let you finish until you supply a falsifiable question (`the_nutrient`) — one containing `?` and reading like an actual test, not a restatement of the failure. If your explanation is shorter than the failure itself, it will reject you. That check exists because compression is not the same as understanding; a "record" that's shorter than the break it's supposedly explaining is usually just the break being smoothed over.
+Interactive. It will not let you finish until you supply a falsifiable question (`the_nutrient`) — one containing `?` and reading like an actual test, not a restatement of the failure. The exact rejection rule: `len(blade) + len(nutrient) + len(grain)` must be at least `len(break)`. A long, careful description of what broke raises your own bar — that's deliberate, but it means the fix for a rejection is to make the nutrient and grain denser, not to shorten the break.
+
+`<lineage_id>` is just a label grouping related scars — there's no separate "create a lineage" step. Any string you haven't used before starts a new one; reuse a string to add to an existing one. Pick something stable per project or per investigation thread (a repo name, a bug ID) so `reflect` later pulls the right set back together.
 
 Scripting a scar instead of typing it interactively:
 
@@ -129,6 +131,8 @@ black-mirror viz --output web.dot    # export the whole graph as Graphviz
 ```
 
 Run `cycles` periodically. Circular support is invisible from inside a single claim and only shows up when you look at the graph shape.
+
+`path` follows edge direction, it does not search both ways. Evidence edges point from evidence toward what they constrain (`observation → anomaly → claim`), so `path <observation_id> <claim_id>` finds the chain but `path <claim_id> <observation_id>` returns nothing even though `reconcile` just traced that exact relationship. If a `path` call comes back empty, try it reversed before concluding the nodes are unconnected.
 
 ### Before you end a session or hand off to the next one
 

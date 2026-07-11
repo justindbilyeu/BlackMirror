@@ -36,9 +36,10 @@ def reconcile(hypothesis_id: str) -> None:
                 visited.add(nb)
                 q.append((nb, path + [nb]))
 
+    node_type, content, _ = nodes[hypothesis_id]
     print(f"\n{'='*60}")
     print(f"RECONCILIATION REPORT for {hypothesis_id}")
-    print(f"Hypothesis: {nodes[hypothesis_id][1][:80]}")
+    print(f"{node_type.capitalize()}: {content[:80]}")
     print(f"{'='*60}")
 
     if not paths_to_obs:
