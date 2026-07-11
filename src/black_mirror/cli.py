@@ -134,7 +134,7 @@ def ingest_scar(scar_id: str):
         print(f"\n[✓] Scar {scar_id} metabolized.")
         print(f"    Observation: {observation_id}")
         print(f"    Anomaly: {anomaly_id}")
-        print(f"    Constraint: {claim_id}")
+        print(f"    Claim: {claim_id}")
     else:
         print("Ingestion failed.")
 
