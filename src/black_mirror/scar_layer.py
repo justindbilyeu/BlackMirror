@@ -1,11 +1,28 @@
 """The Archive Below – immutable scar storage with falsifiability enforcement."""
 
+import difflib
+import re
 import sqlite3
 import uuid
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 
 from .config import SCAR_DB, ensure_dirs
+
+# Auxiliary/modal verbs and comparators a genuinely testable prediction tends to
+# use. Matched as whole words, not substrings — "canary" must not satisfy "can".
+_FALSIFIABLE_MARKERS = [
+    "is", "are", "was", "were", "does", "do", "did", "can", "could",
+    "will", "would", "should", "must", "has", "have",
+    "how much", "how many", "what if", "under what", "which", "when", "where",
+    "before", "after", "within", "at least", "more than", "less than",
+    "exceeds", "fails to",
+]
+
+# A nutrient/grain/blade this similar to the break it's supposedly compressing
+# is a copy, not a compression — the density check exists to require the
+# latter, and copying the break's own words trivially inflates length.
+_COPY_SIMILARITY_THRESHOLD = 0.9
 
 
 def ensure_db():
@@ -33,10 +50,33 @@ def _validate_nutrient(nutrient: str) -> bool:
     if "?" not in nutrient:
         print("\n[INVALID NUTRIENT] Must be a question.")
         return False
-    markers = ["is", "does", "can", "will", "how much", "what if", "under what", "which"]
-    if not any(m in nutrient.lower() for m in markers):
-        print("\n[WARNING] Nutrient may not be falsifiable.")
+    lowered = nutrient.lower()
+    if not any(re.search(rf"\b{re.escape(m)}\b", lowered) for m in _FALSIFIABLE_MARKERS):
+        print("\n[INVALID NUTRIENT] Doesn't read as a testable prediction "
+              "(no auxiliary verb or comparator — e.g. is/does/can/will/before/more than).")
+        return False
     return True
+
+
+def _is_padding(text: str) -> bool:
+    """True if text looks like filler rather than real content."""
+    stripped = text.strip()
+    if not stripped:
+        return True
+    # A field that's just one or two characters repeated, e.g. "................"
+    if len(stripped) > 8 and len(set(stripped.replace(" ", ""))) <= 2:
+        return True
+    words = stripped.split()
+    if len(words) >= 4:
+        unique_ratio = len(set(w.lower() for w in words)) / len(words)
+        if unique_ratio < 0.4:
+            return True
+    return False
+
+
+def _is_copy_of_break(field: str, the_break: str) -> bool:
+    ratio = difflib.SequenceMatcher(None, field.strip().lower(), the_break.strip().lower()).ratio()
+    return ratio >= _COPY_SIMILARITY_THRESHOLD
 
 
 def record_scar(
@@ -49,9 +89,18 @@ def record_scar(
     the_grain: str,
 ) -> Optional[str]:
     """Store a new scar. Returns scar_id if valid, else None."""
-    # Anti-smoothing density check
-    if len(the_break) > len(the_nutrient) + len(the_grain) + len(the_blade):
+    # Anti-smoothing density check, by word count rather than raw characters —
+    # padding a field with repeated characters shouldn't satisfy this.
+    break_words = len(the_break.split())
+    record_words = len(the_blade.split()) + len(the_nutrient.split()) + len(the_grain.split())
+    if record_words < break_words:
         print("\n[SMOOTHING DETECTED] Record is shorter than the break. Expand nutrient or grain.")
+        return None
+    if any(_is_padding(f) for f in (the_blade, the_nutrient, the_grain)):
+        print("\n[SMOOTHING DETECTED] Blade/nutrient/grain looks like padding, not real content.")
+        return None
+    if _is_copy_of_break(the_nutrient, the_break):
+        print("\n[SMOOTHING DETECTED] Nutrient is nearly identical to the break — compress it, don't copy it.")
         return None
     if not _validate_nutrient(the_nutrient):
         return None
