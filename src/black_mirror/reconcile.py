@@ -11,9 +11,11 @@ def reconcile(hypothesis_id: str) -> None:
         print(f"Hypothesis {hypothesis_id} not found.")
         return
 
+    # Edges point from evidence toward what it constrains (e.g. anomaly -> claim),
+    # so tracing a hypothesis back to its evidence means walking edges in reverse.
     adj = {}
     for f, t, _ in edges:
-        adj.setdefault(f, []).append(t)
+        adj.setdefault(t, []).append(f)
 
     visited = {hypothesis_id}
     q = deque([(hypothesis_id, [hypothesis_id])])
