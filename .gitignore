@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.so
+.Python
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+env/
+
+# Database files
+*.db
+*.sqlite3
+
+# Visualisation outputs
+*.png
+*.svg
+*.dot
+
+# OS junk
+.DS_Store
+Thumbs.db
