@@ -1,0 +1,27 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "black-mirror"
+version = "0.1.0"
+description = "The Epistemic Operating System – record failures, map constraints, reconcile theories."
+readme = "README.md"
+authors = [{ name = "justindbilyeu" }]
+license = { text = "MIT" }
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+requires-python = ">=3.8"
+dependencies = []
+
+[project.scripts]
+black-mirror = "black_mirror.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["black_mirror*"]
