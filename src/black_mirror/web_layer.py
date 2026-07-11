@@ -2,10 +2,15 @@
 
 import sqlite3
 import uuid
+from collections import deque
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple, Dict
 
 from .config import WEB_DB, ensure_dirs
+from .models import NodeType, EdgeType
+
+NODE_TYPES = {t.value for t in NodeType}
+EDGE_TYPES = {t.value for t in EdgeType}
 
 
 def ensure_db():
@@ -43,6 +48,9 @@ def ensure_db():
 
 def add_node(node_type: str, content: str, node_id: Optional[str] = None,
              confidence: float = 1.0) -> Optional[str]:
+    if node_type not in NODE_TYPES:
+        print(f"Invalid node type. Choose from: {', '.join(sorted(NODE_TYPES))}")
+        return None
     nid = node_id or str(uuid.uuid4())
     try:
         with sqlite3.connect(WEB_DB) as conn:
@@ -60,6 +68,9 @@ def add_node(node_type: str, content: str, node_id: Optional[str] = None,
 
 def add_edge(from_node: str, to_node: str, edge_type: str,
              weight: float = 1.0, propagate: bool = True) -> Optional[str]:
+    if edge_type not in EDGE_TYPES:
+        print(f"Invalid edge type. Choose from: {', '.join(sorted(EDGE_TYPES))}")
+        return None
     with sqlite3.connect(WEB_DB) as conn:
         c = conn.cursor()
         c.execute("SELECT node_id FROM nodes WHERE node_id IN (?, ?)", (from_node, to_node))
@@ -89,6 +100,65 @@ def get_graph() -> Tuple[Dict[str, Tuple[str, str, float]], List[Tuple[str, str,
         c.execute("SELECT from_node, to_node, edge_type FROM edges")
         edges = c.fetchall()
         return nodes, edges
+
+
+def get_outgoing(node_id: str) -> List[Tuple]:
+    with sqlite3.connect(WEB_DB) as conn:
+        c = conn.cursor()
+        c.execute("""
+            SELECT n.node_id, n.node_type, n.content, e.edge_type, e.weight
+            FROM edges e JOIN nodes n ON e.to_node = n.node_id
+            WHERE e.from_node = ?
+        """, (node_id,))
+        return c.fetchall()
+
+
+def shortest_path(from_id: str, to_id: str) -> Optional[List[str]]:
+    _, edges = get_graph()
+    adj = {}
+    for f, t, _ in edges:
+        adj.setdefault(f, []).append(t)
+
+    visited = {from_id}
+    q = deque([(from_id, [from_id])])
+    while q:
+        node, path = q.popleft()
+        if node == to_id:
+            return path
+        for nb in adj.get(node, []):
+            if nb not in visited:
+                visited.add(nb)
+                q.append((nb, path + [nb]))
+    return None
+
+
+def find_cycles() -> List[List[str]]:
+    _, edges = get_graph()
+    adj = {}
+    for f, t, _ in edges:
+        adj.setdefault(f, []).append(t)
+
+    cycles = []
+    visited = set()
+    stack = set()
+
+    def dfs(node, path):
+        visited.add(node)
+        stack.add(node)
+        path.append(node)
+        for nb in adj.get(node, []):
+            if nb not in visited:
+                dfs(nb, path)
+            elif nb in stack:
+                idx = path.index(nb)
+                cycles.append(path[idx:] + [nb])
+        path.pop()
+        stack.remove(node)
+
+    for n in list(adj.keys()):
+        if n not in visited:
+            dfs(n, [])
+    return cycles
 
 
 def get_constraints(claim_id: str) -> List[Tuple]:
